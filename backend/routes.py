@@ -50,4 +50,70 @@ def parse_json(data):
 
 ######################################################################
 # INSERT CODE HERE
+@app.route("/health")
+def health():
+    return  jsonify(dict(status="OK")), 200
+
+@app.route("/count")
+def count():
+    total_count = db.songs.count_documents({})
+    return jsonify(count=total_count), 200
+
+@app.route("/song", methods=["GET"])
+def songs():
+    song_list = list(db.songs.find({}))
+    return jsonify(parse_json({"songs": song_list})), 200
+
+@app.route("/song/<int:id>", methods=["GET"])
+def get_song_by_id(id):
+    song = db.songs.find_one({"id": id})
+
+    if song is None:
+        return jsonify({"message": "canción con id no encontrada"}), 404
+
+    return jsonify(parse_json(song)), 200
+
+@app.route("/song", methods=["POST"])
+def create_song():
+    song = request.get_json()
+    existing_song = db.songs.find_one({"id" : song["id"]})
+    if existing_song is not None:
+        return jsonify({"Message": f"cancion con  id {song['id']} ya esta presente"}, 302)
+        
+    result = db.songs.insert_one(song)
+    return  jsonify({"inserted id": {"$oid": str(result.inserted_id)}
+    }), 201
+
+@app.route("/song/<int:id>" , methods=["PUT"])
+def update_song(id):
+
+    new_data = request.get_json()
+
+    song = db.songs.find_one({"id": id})
+    
+    if song is None:
+        return jsonify({"message": "canción no encontrada"}), 404
+    
+    result = db.songs.update_one(
+        {"id": id},
+        {"$set": new_data}
+    )
+    if result.modified_count == 0:
+        return jsonify({"message": "song found, but nothing updated"}), 200
+
+    updated_song = db.songs.find_one({"id": id})
+
+    return jsonify(parse_json(updated_song)), 201
+
+@app.route("/song/<int:id>", methods=["DELETE"])
+def delete_song(id):
+    result = db.songs.delete_one({"id": id})
+
+ 
+    if result.deleted_count == 0:
+        return jsonify({"message": "canción no encontrada"}), 404
+
+
+    return "", 204
+
 ######################################################################
